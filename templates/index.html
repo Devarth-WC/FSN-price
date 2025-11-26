@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flipkart Price Scraper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <div class="glass-card">
+            <h1>Instant Price Scraper</h1>
+            <p class="subtitle">Enter FSN to get real-time price</p>
+
+            <div class="input-group">
+                <input type="text" id="fsnInput"
+                    placeholder="Enter FSNs separated by commas (e.g., SLDH2Y4FZYZTTZFA, SLDH...)">
+                <button id="getPriceBtn" onclick="fetchPrice()">Get Price</button>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+            <div class="result-container" id="resultContainer" style="display: none;">
+                <div class="result-header">
+                    <span>FSN</span>
+                    <span>Price</span>
+                </div>
+                <div id="resultsBody">
+                    <!-- Results will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchPrice() {
+            const fsnInput = document.getElementById('fsnInput');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultsBody = document.getElementById('resultsBody');
+            const errorMessage = document.getElementById('errorMessage');
+            const btn = document.getElementById('getPriceBtn');
+
+            const fsns = fsnInput.value.trim();
+
+            if (!fsns) {
+                errorMessage.textContent = 'Please enter at least one FSN.';
+                resultContainer.style.display = 'none';
+                return;
+            }
+
+            errorMessage.textContent = '';
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            resultsBody.innerHTML = ''; // Clear previous results
+
+            try {
+                const response = await fetch('/get_price', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fsns: fsns }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = 'result-row';
+
+                            const fsnSpan = document.createElement('span');
+                            fsnSpan.style.fontFamily = 'monospace';
+                            fsnSpan.style.color = '#e0e7ff';
+                            fsnSpan.textContent = item.fsn;
+
+                            const priceSpan = document.createElement('span');
+                            priceSpan.className = 'price-tag';
+                            if (item.error) {
+                                priceSpan.style.color = '#f87171';
+                                priceSpan.style.fontSize = '1rem';
+                                priceSpan.textContent = item.error;
+                            } else {
+                                priceSpan.textContent = item.price;
+                            }
+
+                            row.appendChild(fsnSpan);
+                            row.appendChild(priceSpan);
+                            resultsBody.appendChild(row);
+                        });
+                        resultContainer.style.display = 'flex';
+                    } else {
+                        errorMessage.textContent = 'No results returned.';
+                        resultContainer.style.display = 'none';
+                    }
+                } else {
+                    errorMessage.textContent = data.error || 'An error occurred.';
+                    resultContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error(error);
+                errorMessage.textContent = 'Failed to connect to server.';
+                resultContainer.style.display = 'none';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Price';
+            }
+        }
+    </script>
+</body>
+
+</html>
